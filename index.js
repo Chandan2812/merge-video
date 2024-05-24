@@ -24,6 +24,9 @@ function reencodeVideo(inputVideo, outputVideo, callback) {
         .outputOptions('-c:a', 'aac')
         .outputOptions('-b:a', '192k') // Set audio bitrate
         .outputOptions('-ar', '44100') // Set audio sample rate
+        .on('start', (commandLine) => {
+            console.log('Spawned FFmpeg with command: ' + commandLine);
+        })
         .on('end', () => {
             console.log('Re-encoding finished: ' + outputVideo);
             callback(null, outputVideo);
@@ -50,6 +53,9 @@ function mergeVideos(inputVideos, outputVideo, callback) {
         .outputOptions('-c:v', 'libx264')
         .outputOptions('-c:a', 'aac')
         .outputOptions('-strict', 'experimental')
+        .on('start', (commandLine) => {
+            console.log('Spawned FFmpeg for merging with command: ' + commandLine);
+        })
         .on('error', (err) => {
             console.error('Error: ' + err.message);
             if (callback) callback(err);
@@ -64,6 +70,7 @@ function mergeVideos(inputVideos, outputVideo, callback) {
 
 // Endpoint to upload videos and merge them
 app.post('/merge', upload.array('videos'), (req, res) => {
+    console.log('Received request to merge videos');
     const inputVideos = req.files.map(file => file.path);
     const reencodedVideos = [];
 
@@ -73,6 +80,7 @@ app.post('/merge', upload.array('videos'), (req, res) => {
         const outputReencoded = video + '_reencoded.mp4';
         reencodeVideo(video, outputReencoded, (err) => {
             if (err) {
+                console.error('Error re-encoding video:', err);
                 return res.status(500).json({ error: 'Error re-encoding video: ' + err.message });
             }
             reencodedVideos[index] = outputReencoded;
@@ -85,6 +93,7 @@ app.post('/merge', upload.array('videos'), (req, res) => {
                     reencodedVideos.forEach(file => fs.unlinkSync(file));
 
                     if (err) {
+                        console.error('Error merging videos:', err);
                         return res.status(500).json({ error: 'Error merging videos: ' + err.message });
                     }
 
